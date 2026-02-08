@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard Patrón - Reportes</title>
+
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f6f6f6; }
+    h1 { margin-bottom: 5px; }
+    .box { background: white; padding: 16px; border-radius: 10px; margin-top: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .card { flex: 1; min-width: 180px; padding: 14px; border-radius: 10px; background: #111; color: white; }
+    .card h3 { margin: 0; font-size: 14px; opacity: .8; }
+    .card p { margin: 8px 0 0; font-size: 24px; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: left; }
+    th { background: #eee; }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+    label { font-size: 13px; opacity: .8; }
+    select, button { padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
+    button { background: #0b5; color: white; font-weight: bold; cursor: pointer; border: none; }
+    button:hover { background: #0a4; }
+    .muted { opacity: .7; font-size: 13px; }
+    .danger { color: #b00; font-weight: bold; }
+  </style>
+</head>
+
+<body>
+
+  <h1>📊 Dashboard del Patrón</h1>
+  <div class="muted" id="infoUser">Cargando...</div>
+
+  <div class="box">
+    <div class="controls">
+      <div>
+        <label>Año</label><br>
+        <select id="anio"></select>
+      </div>
+
+      <div>
+        <label>Mes</label><br>
+        <select id="mes"></select>
+      </div>
+
+      <button onclick="cargar()">🔄 Consultar</button>
+    </div>
+  </div>
+
+  <div class="box">
+    <h2>Totales globales del mes</h2>
+    <div class="row">
+      <div class="card">
+        <h3>Efectivo</h3>
+        <p id="t_efectivo">$0</p>
+      </div>
+      <div class="card">
+        <h3>Transferencia</h3>
+        <p id="t_transferencia">$0</p>
+      </div>
+      <div class="card">
+        <h3>Tarjeta</h3>
+        <p id="t_tarjeta">$0</p>
+      </div>
+      <div class="card">
+        <h3>Total</h3>
+        <p id="t_total">$0</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <h2>Totales por tienda</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Tienda</th>
+          <th>Efectivo</th>
+          <th>Transferencia</th>
+          <th>Tarjeta</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody id="tabla"></tbody>
+    </table>
+  </div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  function money(n) {
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
+      .format(Number(n || 0));
+  }
+
+  function getToken() {
+    return localStorage.getItem('token');
+  }
+
+  function getUser() {
+    const raw = localStorage.getItem('usuario');
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+
+  function validarLogin() {
+    const token = getToken();
+    if (!token) {
+      alert("No has iniciado sesión");
+      window.location.href = "/login.html";
+      return false;
+    }
+    return true;
+  }
+
+  function setInfoUsuario() {
+    const u = getUser();
+    if (!u) {
+      $('infoUser').innerHTML = `<span class="danger">⚠️ No hay usuario guardado. Revisa login.html</span>`;
+      return;
+    }
+
+    $('infoUser').textContent =
+      `Usuario: ${u.nombre} (${u.usuario}) | Rol: ${u.rol} | Tienda: ${u.id_tienda ?? 'GLOBAL'}`;
+  }
+
+  function llenarSelects() {
+    const hoy = new Date();
+    const anioActual = hoy.getFullYear();
+    const mesActual = hoy.getMonth() + 1;
+
+    $('anio').innerHTML = '';
+    $('mes').innerHTML = '';
+
+    // Años
+    for (let a = anioActual - 2; a <= anioActual + 1; a++) {
+      const opt = document.createElement('option');
+      opt.value = a;
+      opt.textContent = a;
+      if (a === anioActual) opt.selected = true;
+      $('anio').appendChild(opt);
+    }
+
+    // Meses
+    const meses = [
+      "Enero","Febrero","Marzo","Abril","Mayo","Junio",
+      "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"
+    ];
+
+    for (let m = 1; m <= 12; m++) {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = `${m} - ${meses[m-1]}`;
+      if (m === mesActual) opt.selected = true;
+      $('mes').appendChild(opt);
+    }
+  }
+
+  async function cargar() {
+    if (!validarLogin()) return;
+
+    const token = getToken();
+
+    const anio = $('anio').value;
+    const mes = $('mes').value;
+
+    const url = `/api/reportes/resumen-mes?anio=${anio}&mes=${mes}`;
+
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    });
+
+    const json = await res.json();
+
+    if (!json.ok) {
+      alert(json.mensaje || json.error || 'Error');
+      return;
+    }
+
+    // Totales globales
+    $('t_efectivo').textContent = money(json.totales.efectivo);
+    $('t_transferencia').textContent = money(json.totales.transferencia);
+    $('t_tarjeta').textContent = money(json.totales.tarjeta);
+    $('t_total').textContent = money(json.totales.total);
+
+    // Tabla por tienda
+    const tbody = $('tabla');
+    tbody.innerHTML = '';
+
+    json.tiendas.forEach(t => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${t.id_tienda}</td>
+        <td>${t.tienda}</td>
+        <td>${money(t.efectivo)}</td>
+        <td>${money(t.transferencia)}</td>
+        <td>${money(t.tarjeta)}</td>
+        <td><b>${money(t.total)}</b></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // INIT
+  if (validarLogin()) {
+    setInfoUsuario();
+    llenarSelects();
+    cargar();
+  }
+</script>
+
+</body>
+</html>

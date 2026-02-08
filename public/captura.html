@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Captura de Reporte Diario</title>
+
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f6f6f6; }
+    h1 { margin-bottom: 5px; }
+    .muted { opacity: .7; font-size: 13px; }
+    .box { background: white; padding: 16px; border-radius: 10px; margin-top: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    label { font-size: 13px; opacity: .8; display:block; margin-top: 10px; }
+    input, select, button { padding: 10px; border-radius: 8px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
+    button { background: #0b5; color: white; font-weight: bold; cursor: pointer; border: none; margin-top: 14px; }
+    button:hover { background: #0a4; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .col { flex: 1; min-width: 180px; }
+    pre { background: #111; color: #0f0; padding: 12px; border-radius: 10px; overflow:auto; }
+    .danger { color: #b00; font-weight: bold; }
+  </style>
+</head>
+
+<body>
+
+  <h1>🧾 Captura de Reporte Diario</h1>
+  <div class="muted" id="infoUser">Cargando usuario...</div>
+
+  <div class="box">
+    <div class="row">
+      <div class="col">
+        <label>Fecha</label>
+        <input type="date" id="fecha">
+      </div>
+
+      <div class="col">
+        <label>Tienda</label>
+        <select id="id_tienda"></select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col">
+        <label>Efectivo</label>
+        <input type="number" id="efectivo" value="0" step="0.01">
+      </div>
+
+      <div class="col">
+        <label>Transferencia</label>
+        <input type="number" id="transferencia" value="0" step="0.01">
+      </div>
+
+      <div class="col">
+        <label>Tarjeta</label>
+        <input type="number" id="tarjeta" value="0" step="0.01">
+      </div>
+    </div>
+
+    <button onclick="guardar()">💾 Guardar reporte</button>
+  </div>
+
+  <div class="box">
+    <h3>Respuesta</h3>
+    <pre id="out">{}</pre>
+  </div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  console.log("CAPTURA CARGADA");
+  console.log("TOKEN:", localStorage.getItem("token"));
+
+  function hoyISO() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function getToken() {
+    return localStorage.getItem('token');
+  }
+
+  function getUser() {
+    const raw = localStorage.getItem('usuario');
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+
+  function validarLogin() {
+    const token = getToken();
+    if (!token) {
+      alert("No has iniciado sesión");
+      window.location.href = "/login.html";
+      return false;
+    }
+    return true;
+  }
+
+  function setInfoUsuario() {
+    const u = getUser();
+    if (!u) {
+      $('infoUser').innerHTML = `<span class="danger">⚠️ No hay info de usuario guardada (solo token). Corrige login.html</span>`;
+      return;
+    }
+
+    $('infoUser').textContent =
+      `Usuario: ${u.nombre} (${u.usuario}) | Rol: ${u.rol} | Tienda: ${u.id_tienda ?? 'GLOBAL'}`;
+  }
+
+  async function cargarTiendas() {
+    const token = getToken();
+
+    const res = await fetch('/api/tiendas', {
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    });
+
+    const json = await res.json();
+
+    if (!json.ok) {
+      alert(json.mensaje || json.error || 'Error cargando tiendas');
+      return;
+    }
+
+    $('id_tienda').innerHTML = '';
+
+    json.tiendas.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.id_tienda;
+      opt.textContent = `${t.id_tienda} - ${t.nombre}`;
+      $('id_tienda').appendChild(opt);
+    });
+  }
+
+  async function guardar() {
+    if (!validarLogin()) return;
+
+    const token = getToken();
+
+    const body = {
+      fecha: $('fecha').value,
+      id_tienda: Number($('id_tienda').value),
+      efectivo: Number($('efectivo').value || 0),
+      transferencia: Number($('transferencia').value || 0),
+      tarjeta: Number($('tarjeta').value || 0)
+    };
+
+    if (!body.fecha || !body.id_tienda) {
+      alert("Falta fecha o tienda");
+      return;
+    }
+
+    const res = await fetch('/api/reportes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify(body)
+    });
+
+    const json = await res.json();
+    $('out').textContent = JSON.stringify(json, null, 2);
+
+    if (json.ok) {
+      alert("✅ Reporte guardado");
+    } else {
+      alert("❌ " + (json.mensaje || json.error || "Error"));
+    }
+  }
+
+  // INIT
+  $('fecha').value = hoyISO();
+
+  if (validarLogin()) {
+    setInfoUsuario();
+    cargarTiendas();
+  }
+</script>
+
+</body>
+</html>

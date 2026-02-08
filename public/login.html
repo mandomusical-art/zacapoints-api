@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Login Test</title>
+</head>
+<body>
+  <h2>Login Test</h2>
+
+  <input id="usuario" placeholder="usuario" value="admin">
+  <input id="password" placeholder="password" value="1234" type="password">
+  <button onclick="login()">Login</button>
+
+  <pre id="out"></pre>
+
+<script>
+async function login() {
+  const usuario = document.getElementById('usuario').value;
+  const password = document.getElementById('password').value;
+
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuario, password })
+  });
+
+  const json = await res.json();
+  document.getElementById('out').textContent = JSON.stringify(json, null, 2);
+
+  if (json.ok) {
+  localStorage.setItem('token', json.token);
+  localStorage.setItem('usuario', JSON.stringify(json.usuario));
+}
+
+}
+</script>
+</body>
+</html>
