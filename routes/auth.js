@@ -134,4 +134,32 @@ router.post('/crear-usuario', requireAuth, requireRole('ADMIN'), async (req, res
     res.status(500).json({ ok: false, error: e.message });
   }
 });
+const { requireAuth } = require('../middlewares/auth');
+
+// POST /api/auth/fijar-admin
+router.post('/fijar-admin', requireAuth, (req, res) => {
+
+  // Solo el usuario 1 puede hacer esto (tu admin real)
+  if (req.user.id_usuario !== 1) {
+    return res.status(403).json({
+      ok: false,
+      mensaje: "Solo el usuario principal puede ejecutar esto"
+    });
+  }
+
+  const sql = `UPDATE usuarios SET rol='ADMIN' WHERE id_usuario=1`;
+
+  db.query(sql, (err) => {
+    if (err) return res.status(500).json({ ok: false, error: err.message });
+
+    res.json({
+      ok: true,
+      mensaje: "Rol actualizado a ADMIN. Vuelve a iniciar sesión."
+    });
+  });
+});
+
+
+
+
 module.exports = router;
