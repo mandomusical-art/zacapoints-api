@@ -2,10 +2,10 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Login Test</title>
+  <title>Login Zacapoints</title>
 </head>
 <body>
-  <h2>Login Test</h2>
+  <h2>Login Zacapoints</h2>
 
   <input id="usuario" placeholder="usuario" value="admin">
   <input id="password" placeholder="password" value="1234" type="password">
@@ -15,24 +15,40 @@
 
 <script>
 async function login() {
-  const usuario = document.getElementById('usuario').value;
+  const usuario = document.getElementById('usuario').value.trim();
   const password = document.getElementById('password').value;
 
-  const res = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usuario, password })
-  });
+  // Limpia antes de intentar
+  localStorage.removeItem("token");
+  localStorage.removeItem("usuario");
 
-  const json = await res.json();
-  document.getElementById('out').textContent = JSON.stringify(json, null, 2);
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario, password })
+    });
 
-  if (json.ok) {
-  localStorage.setItem('token', json.token);
-  localStorage.setItem('usuario', JSON.stringify(json.usuario));
-}
+    const json = await res.json();
+    document.getElementById('out').textContent = JSON.stringify(json, null, 2);
 
+    if (!res.ok || !json.ok) {
+      alert(json.mensaje || json.error || "Login incorrecto");
+      return;
+    }
+
+    localStorage.setItem('token', json.token);
+    localStorage.setItem('usuario', JSON.stringify(json.usuario));
+
+    // 🚀 YA LOGUEADO → DASHBOARD
+    window.location.href = "/dashboard.html";
+
+  } catch (err) {
+    alert("No se pudo conectar al servidor");
+    console.error(err);
+  }
 }
 </script>
 </body>
 </html>
+
