@@ -2,23 +2,103 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login Zacapoints</title>
+
+  <style>
+    body{
+      font-family: Arial, sans-serif;
+      background:#f4f6f9;
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding:20px;
+    }
+    .card{
+      width:100%;
+      max-width:420px;
+      background:white;
+      border-radius:14px;
+      padding:24px;
+      box-shadow:0 10px 25px rgba(0,0,0,.08);
+    }
+    h2{
+      margin:0 0 18px 0;
+      font-size:22px;
+    }
+    label{
+      display:block;
+      font-size:14px;
+      margin:10px 0 6px;
+      color:#333;
+    }
+    input{
+      width:100%;
+      padding:12px;
+      border-radius:10px;
+      border:1px solid #ddd;
+      font-size:16px;
+      outline:none;
+      box-sizing:border-box;
+    }
+    input:focus{
+      border-color:#222;
+    }
+    button{
+      width:100%;
+      margin-top:16px;
+      padding:12px;
+      border:none;
+      border-radius:10px;
+      background:#111;
+      color:white;
+      font-size:16px;
+      cursor:pointer;
+    }
+    button:hover{
+      opacity:.92;
+    }
+    .small{
+      margin-top:12px;
+      font-size:12px;
+      color:#666;
+      text-align:center;
+    }
+    pre{
+      margin-top:12px;
+      font-size:12px;
+      background:#f1f1f1;
+      padding:10px;
+      border-radius:10px;
+      overflow:auto;
+      display:none; /* lo ocultamos para el cliente */
+    }
+  </style>
 </head>
+
 <body>
-  <h2>Login Zacapoints</h2>
+  <div class="card">
+    <h2>🔐 Login Zacapoints</h2>
 
-  <input id="usuario" placeholder="usuario" value="admin">
-  <input id="password" placeholder="password" value="1234" type="password">
-  <button onclick="login()">Login</button>
+    <label for="usuario">Usuario</label>
+    <input id="usuario" placeholder="usuario" value="admin">
 
-  <pre id="out"></pre>
+    <label for="password">Contraseña</label>
+    <input id="password" placeholder="password" value="1234" type="password">
+
+    <button onclick="login()">Entrar</button>
+
+    <div class="small">Acceso seguro • Railway Deploy</div>
+    <pre id="out"></pre>
+  </div>
 
 <script>
 async function login() {
   const usuario = document.getElementById('usuario').value.trim();
   const password = document.getElementById('password').value;
 
-  // Limpia antes de intentar
   localStorage.removeItem("token");
   localStorage.removeItem("usuario");
 
@@ -40,7 +120,6 @@ async function login() {
     localStorage.setItem('token', json.token);
     localStorage.setItem('usuario', JSON.stringify(json.usuario));
 
-    // 🚀 YA LOGUEADO → DASHBOARD
     window.location.href = "/dashboard.html";
 
   } catch (err) {
@@ -49,6 +128,7 @@ async function login() {
   }
 }
 </script>
+
 </body>
 </html>
 
