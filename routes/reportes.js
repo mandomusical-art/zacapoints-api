@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db/mysql');
-const { requireAuth } = require('../middlewares/auth');
+const { requireAuth, requireRole } = require('../middlewares/auth');
+
 
 
 // =============================
@@ -204,6 +205,105 @@ if (anio && mes) {
     });
   });
 });
+// =============================
+// POST /api/reportes/diario
+// Captura diaria por turno (auto)
+// =============================
+function calcularTurno() {
+  const now = new Date();
+  const hora = now.getHours();
+
+  if (hora >= 8 && hora < 16) return 1;
+  if (hora >= 16 && hora < 23) return 2;
+
+  return 0;
+}
+
+router.post(
+  '/diario',
+  requireAuth,
+  requireRole('TIENDA'),
+  (req, res) => {
+
+    const { id_usuario, id_tienda } = req.user;
+
+    const turno = calcularTurno();
+    if (turno === 0) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: 'Fuera de horario (08:00 a 23:00)'
+      });
+    }
+
+    const {
+      total = 0,
+      efectivo = 0,
+      transferencia = 0,
+      terminal1 = 0,
+      terminal2 = 0,
+      gastos = 0,
+      retiro = 0,
+      fondo_inicial = 0
+    } = req.body;
+
+    // Validación: no negativos
+    const valores = { total, efectivo, transferencia, terminal1, terminal2, gastos, retiro, fondo_inicial };
+    for (const k in valores) {
+      const v = Number(valores[k]);
+      if (isNaN(v)) {
+        return res.status(400).json({ ok: false, mensaje: `Campo inválido: ${k}` });
+      }
+      if (v < 0) {
+        return res.status(400).json({ ok: false, mensaje: `No se permite negativo: ${k}` });
+      }
+    }
+
+    const sql = `
+      INSERT INTO reportes_diarios
+      (fecha, turno, id_tienda, id_usuario,
+       total, efectivo, transferencia,
+       terminal1, terminal2,
+       gastos, retiro, fondo_inicial)
+      VALUES
+      (CURDATE(), ?, ?, ?,
+       ?, ?, ?,
+       ?, ?,
+       ?, ?, ?)
+    `;
+
+    const params = [
+      turno, id_tienda, id_usuario,
+      total, efectivo, transferencia,
+      terminal1, terminal2,
+      gastos, retiro, fondo_inicial
+    ];
+
+    db.query(sql, params, (err, result) => {
+      if (err) {
+        if (err.code === 'ER_DUP_ENTRY') {
+          return res.status(409).json({
+            ok: false,
+            mensaje: 'Ya existe captura para este turno'
+          });
+        }
+
+        return res.status(500).json({
+          ok: false,
+          error: err.message
+        });
+      }
+
+      res.json({
+        ok: true,
+        mensaje: 'Captura guardada',
+        id_reporte: result.insertId,
+        turno
+      });
+    });
+  }
+);
+
+
 
 module.exports = router;
 
