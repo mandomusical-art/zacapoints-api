@@ -72,5 +72,66 @@ router.post('/login', (req, res) => {
     });
   });
 });
+const { requireAuth, requireRole } = require('../middlewares/auth');
 
+// POST /api/auth/crear-usuario
+// Solo ADMIN
+router.post('/crear-usuario', requireAuth, requireRole('ADMIN'), async (req, res) => {
+  const { nombre, usuario, password, rol, id_tienda } = req.body;
+
+  if (!nombre || !usuario || !password || !rol) {
+    return res.status(400).json({
+      ok: false,
+      mensaje: "Faltan datos: nombre, usuario, password, rol"
+    });
+  }
+
+  if (!['ADMIN', 'TIENDA'].includes(rol)) {
+    return res.status(400).json({
+      ok: false,
+      mensaje: "Rol inválido. Usa ADMIN o TIENDA"
+    });
+  }
+
+  if (rol === 'TIENDA' && !id_tienda) {
+    return res.status(400).json({
+      ok: false,
+      mensaje: "Para rol TIENDA debes enviar id_tienda"
+    });
+  }
+
+  try {
+    // Verificar si ya existe
+    db.query(
+      "SELECT id_usuario FROM usuarios WHERE usuario = ? LIMIT 1",
+      [usuario],
+      async (err, rows) => {
+        if (err) return res.status(500).json({ ok: false, error: err.message });
+
+        if (rows.length > 0) {
+          return res.status(400).json({ ok: false, mensaje: "Ese usuario ya existe" });
+        }
+
+        const hash = await bcrypt.hash(password, 10);
+
+        const sql = `
+          INSERT INTO usuarios (nombre, usuario, password, rol, id_tienda, activo)
+          VALUES (?, ?, ?, ?, ?, 1)
+        `;
+
+        db.query(sql, [nombre, usuario, hash, rol, id_tienda || null], (err2, result) => {
+          if (err2) return res.status(500).json({ ok: false, error: err2.message });
+
+          res.json({
+            ok: true,
+            mensaje: "Usuario creado",
+            id_usuario: result.insertId
+          });
+        });
+      }
+    );
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
 module.exports = router;
