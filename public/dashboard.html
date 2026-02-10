@@ -23,12 +23,32 @@
     button:hover { background: #0a4; }
     .muted { opacity: .7; font-size: 13px; }
     .danger { color: #b00; font-weight: bold; }
+    .encabezado{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:6px;
+}
+
+.logo{
+  width:52px;
+  height:52px;
+  object-fit:contain;
+  background:white;
+  padding:6px;
+  border-radius:14px;
+  box-shadow:0 6px 14px rgba(0,0,0,.12);
+}
   </style>
 </head>
 
 <body>
 
-  <h1>📊 Reportes Santa Anita</h1>
+  <div class="encabezado">
+  <img src="/img/logo.png" class="logo">
+  <h1>Reportes Santa Anita</h1>
+</div>
+  
   <div class="muted" id="infoUser">Cargando...</div>
 
   <div class="box">
