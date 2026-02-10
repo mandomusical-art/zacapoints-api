@@ -4,7 +4,11 @@ const db = require('../db/mysql');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
+const { requireAuth, requireRole } = require('../middlewares/auth');
+
+// ==============================
 // POST /api/auth/login
+// ==============================
 router.post('/login', (req, res) => {
   const { usuario, password } = req.body;
 
@@ -72,10 +76,36 @@ router.post('/login', (req, res) => {
     });
   });
 });
-const { requireAuth, requireRole } = require('../middlewares/auth');
 
+// ==============================
+// POST /api/auth/fijar-admin
+// Convierte id_usuario=1 a rol ADMIN
+// ==============================
+router.post('/fijar-admin', requireAuth, (req, res) => {
+
+  if (req.user.id_usuario !== 1) {
+    return res.status(403).json({
+      ok: false,
+      mensaje: "Solo el usuario principal puede ejecutar esto"
+    });
+  }
+
+  const sql = `UPDATE usuarios SET rol='ADMIN' WHERE id_usuario=1`;
+
+  db.query(sql, (err) => {
+    if (err) return res.status(500).json({ ok: false, error: err.message });
+
+    res.json({
+      ok: true,
+      mensaje: "Rol actualizado a ADMIN. Vuelve a iniciar sesión."
+    });
+  });
+});
+
+// ==============================
 // POST /api/auth/crear-usuario
 // Solo ADMIN
+// ==============================
 router.post('/crear-usuario', requireAuth, requireRole('ADMIN'), async (req, res) => {
   const { nombre, usuario, password, rol, id_tienda } = req.body;
 
@@ -100,66 +130,36 @@ router.post('/crear-usuario', requireAuth, requireRole('ADMIN'), async (req, res
     });
   }
 
-  try {
-    // Verificar si ya existe
-    db.query(
-      "SELECT id_usuario FROM usuarios WHERE usuario = ? LIMIT 1",
-      [usuario],
-      async (err, rows) => {
-        if (err) return res.status(500).json({ ok: false, error: err.message });
+  // Verificar si ya existe
+  db.query(
+    "SELECT id_usuario FROM usuarios WHERE usuario = ? LIMIT 1",
+    [usuario],
+    async (err, rows) => {
+      if (err) return res.status(500).json({ ok: false, error: err.message });
 
-        if (rows.length > 0) {
-          return res.status(400).json({ ok: false, mensaje: "Ese usuario ya existe" });
-        }
-
-        const hash = await bcrypt.hash(password, 10);
-
-        const sql = `
-          INSERT INTO usuarios (nombre, usuario, password, rol, id_tienda, activo)
-          VALUES (?, ?, ?, ?, ?, 1)
-        `;
-
-        db.query(sql, [nombre, usuario, hash, rol, id_tienda || null], (err2, result) => {
-          if (err2) return res.status(500).json({ ok: false, error: err2.message });
-
-          res.json({
-            ok: true,
-            mensaje: "Usuario creado",
-            id_usuario: result.insertId
-          });
-        });
+      if (rows.length > 0) {
+        return res.status(400).json({ ok: false, mensaje: "Ese usuario ya existe" });
       }
-    );
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
+
+      const hash = await bcrypt.hash(password, 10);
+
+      const sql = `
+        INSERT INTO usuarios (nombre, usuario, password, rol, id_tienda, activo)
+        VALUES (?, ?, ?, ?, ?, 1)
+      `;
+
+      db.query(sql, [nombre, usuario, hash, rol, id_tienda || null], (err2, result) => {
+        if (err2) return res.status(500).json({ ok: false, error: err2.message });
+
+        res.json({
+          ok: true,
+          mensaje: "Usuario creado",
+          id_usuario: result.insertId
+        });
+      });
+    }
+  );
 });
-const { requireAuth } = require('../middlewares/auth');
-
-// POST /api/auth/fijar-admin
-router.post('/fijar-admin', requireAuth, (req, res) => {
-
-  // Solo el usuario 1 puede hacer esto (tu admin real)
-  if (req.user.id_usuario !== 1) {
-    return res.status(403).json({
-      ok: false,
-      mensaje: "Solo el usuario principal puede ejecutar esto"
-    });
-  }
-
-  const sql = `UPDATE usuarios SET rol='ADMIN' WHERE id_usuario=1`;
-
-  db.query(sql, (err) => {
-    if (err) return res.status(500).json({ ok: false, error: err.message });
-
-    res.json({
-      ok: true,
-      mensaje: "Rol actualizado a ADMIN. Vuelve a iniciar sesión."
-    });
-  });
-});
-
-
-
 
 module.exports = router;
+
