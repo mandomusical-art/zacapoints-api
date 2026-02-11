@@ -239,6 +239,118 @@ router.post(
         mensaje: 'Fuera de horario (08:00 a 23:00)'
       });
     }
+    // ============================================
+// GET /api/reportes/diario/hoy
+// Devuelve la captura del turno actual (si existe)
+// ============================================
+router.get('/diario/hoy', requireAuth, (req, res) => {
+
+  // Solo TIENDA
+  if (req.user.rol !== "TIENDA") {
+    return res.status(403).json({
+      ok: false,
+      mensaje: "Acceso denegado. Solo TIENDA"
+    });
+  }
+
+  const id_tienda = req.user.id_tienda;
+
+  if (!id_tienda) {
+    return res.status(400).json({
+      ok: false,
+      mensaje: "El usuario TIENDA no tiene id_tienda asignado"
+    });
+  }
+
+  // Fecha CDMX YYYY-MM-DD
+  const fecha = new Date().toLocaleDateString("en-CA", {
+    timeZone: "America/Mexico_City"
+  });
+
+  // Turno CDMX
+  const horaMx = Number(
+    new Date().toLocaleString("en-US", {
+      timeZone: "America/Mexico_City",
+      hour: "2-digit",
+      hour12: false
+    })
+  );
+
+  let turno = 0;
+  if (horaMx >= 8 && horaMx < 16) turno = 1;
+  else if (horaMx >= 16 && horaMx < 23) turno = 2;
+
+  if (turno === 0) {
+    return res.json({
+      ok: true,
+      existe: false,
+      fueraHorario: true,
+      mensaje: "Fuera de horario (08:00 a 23:00)",
+      fecha,
+      turno
+    });
+  }
+
+  const sql = `
+    SELECT
+      id_reporte,
+      fecha,
+      turno,
+      id_tienda,
+      id_usuario,
+      efectivo,
+      transferencia,
+      terminal1,
+      terminal2,
+      gastos,
+      retiro,
+      fondo_inicial,
+      tarjeta,
+      total,
+      fecha_registro
+    FROM reportes_diarios
+    WHERE id_tienda = ?
+      AND fecha = ?
+      AND turno = ?
+    LIMIT 1
+  `;
+
+  db.query(sql, [id_tienda, fecha, turno], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+
+    // Si existe
+    if (rows.length > 0) {
+      return res.json({
+        ok: true,
+        existe: true,
+        fecha,
+        turno,
+        data: rows[0]
+      });
+    }
+
+    // Si NO existe, regresamos plantilla
+    return res.json({
+      ok: true,
+      existe: false,
+      fecha,
+      turno,
+      data: {
+        efectivo: 0,
+        transferencia: 0,
+        terminal1: 0,
+        terminal2: 0,
+        gastos: 0,
+        retiro: 0,
+        fondo_inicial: 0,
+        tarjeta: 0,
+        total: 0
+      }
+    });
+  });
+});
 
     const {
       total = 0,
