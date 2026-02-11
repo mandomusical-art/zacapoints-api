@@ -1,9 +1,11 @@
+router.get('/ping', (req, res) => {
+  res.json({ ok: true, ping: 'reportes router ok' });
+});
+
 const express = require('express');
 const router = express.Router();
 const db = require('../db/mysql');
 const { requireAuth, requireRole } = require('../middlewares/auth');
-
-
 
 // =============================
 // POST /api/reportes (GUARDAR)
