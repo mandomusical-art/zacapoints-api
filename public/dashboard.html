@@ -52,20 +52,25 @@
   <div class="muted" id="infoUser">Cargando...</div>
 
   <div class="box">
-    <div class="controls">
-      <div>
-        <label>Año</label><br>
-        <select id="anio"></select>
-      </div>
-
-      <div>
-        <label>Mes</label><br>
-        <select id="mes"></select>
-      </div>
-
-      <button onclick="cargar()">🔄 Consultar</button>
+  <div class="controls">
+    <div>
+      <label>Año</label><br>
+      <select id="anio"></select>
     </div>
+
+    <div>
+      <label>Mes</label><br>
+      <select id="mes"></select>
+    </div>
+
+    <button onclick="cargar()">🔄 Consultar</button>
+    <button onclick="irCaptura()" style="background:#2563eb;">🧾 Ir a Captura</button>
   </div>
+</div>
+function irCaptura(){
+  window.location.href = "/captura.html";
+}
+
 
   <div class="box">
     <h2>Totales globales del mes</h2>
