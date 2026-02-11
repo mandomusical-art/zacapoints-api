@@ -21,6 +21,16 @@ app.get('/test123', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+app.get('/version', (req, res) => {
+  res.json({
+    ok: true,
+    app: "zacapoints-api",
+    version: "etapa2-diario-hoy",
+    fecha: new Date().toISOString()
+  });
+});
+
+
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
