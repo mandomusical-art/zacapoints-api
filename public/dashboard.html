@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Reportes Santa Anita - Reportes</title>
+  <title>Reportes Santa Anita EDITADO - Reportes</title>
 
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #f6f6f6; }
@@ -113,6 +113,11 @@ function irCaptura(){
 
 <script>
   const $ = (id) => document.getElementById(id);
+
+  function irCaptura(){
+  window.location.href = "/captura.html";
+}
+
 
   function money(n) {
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
