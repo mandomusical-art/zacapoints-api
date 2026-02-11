@@ -209,15 +209,20 @@ if (anio && mes) {
 // POST /api/reportes/diario
 // Captura diaria por turno (auto)
 // =============================
-function calcularTurno() {
-  const now = new Date();
-  const hora = now.getHours();
+function calcularTurnoMexico() {
+  const ahora = new Date();
 
-  if (hora >= 8 && hora < 16) return 1;
-  if (hora >= 16 && hora < 23) return 2;
+  // Convertir a hora de México (CDMX)
+  const horaMx = Number(
+    ahora.toLocaleString("en-US", { timeZone: "America/Mexico_City", hour: "2-digit", hour12: false })
+  );
+
+  if (horaMx >= 8 && horaMx < 16) return 1;
+  if (horaMx >= 16 && horaMx < 23) return 2;
 
   return 0;
 }
+
 
 router.post(
   '/diario',
@@ -227,7 +232,7 @@ router.post(
 
     const { id_usuario, id_tienda } = req.user;
 
-    const turno = calcularTurno();
+    const turno = calcularTurnoMexico();
     if (turno === 0) {
       return res.status(400).json({
         ok: false,
