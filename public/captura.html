@@ -18,6 +18,9 @@
     .col { flex: 1; min-width: 180px; }
     pre { background: #111; color: #0f0; padding: 12px; border-radius: 10px; overflow:auto; }
     .danger { color: #b00; font-weight: bold; }
+    .totalBox { background:#f0fff5; border:1px solid #b7f7c8; padding:12px; border-radius:10px; margin-top:14px; }
+    .totalNum { font-size:22px; font-weight:bold; }
+    .mini { font-size:12px; opacity:.7; margin-top:4px; }
   </style>
 </head>
 
@@ -34,10 +37,22 @@
       </div>
 
       <div class="col">
+        <label>Turno</label>
+        <select id="turno">
+          <option value="1">Turno 1</option>
+          <option value="2">Turno 2</option>
+        </select>
+        <div class="muted" id="turnoHelp"></div>
+      </div>
+
+      <div class="col" id="tiendaBox">
         <label>Tienda</label>
         <select id="id_tienda"></select>
+        <div class="muted" id="tiendaHelp"></div>
       </div>
     </div>
+
+    <hr style="margin:14px 0; border-color:#eee;">
 
     <div class="row">
       <div class="col">
@@ -51,12 +66,44 @@
       </div>
 
       <div class="col">
-        <label>Tarjeta</label>
-        <input type="number" id="tarjeta" value="0" step="0.01">
+        <label>Terminal 1</label>
+        <input type="number" id="terminal1" value="0" step="0.01">
       </div>
     </div>
 
-    <button onclick="guardar()">💾 Guardar reporte</button>
+    <div class="row">
+      <div class="col">
+        <label>Terminal 2</label>
+        <input type="number" id="terminal2" value="0" step="0.01">
+      </div>
+
+      <div class="col">
+        <label>Gastos</label>
+        <input type="number" id="gastos" value="0" step="0.01">
+      </div>
+
+      <div class="col">
+        <label>Retiro</label>
+        <input type="number" id="retiro" value="0" step="0.01">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col">
+        <label>Fondo inicial</label>
+        <input type="number" id="fondo_inicial" value="0" step="0.01">
+      </div>
+
+      <div class="col">
+        <label>Total (calculado)</label>
+        <div class="totalBox">
+          <div class="totalNum" id="total">$0.00</div>
+          <div class="mini">Total = efectivo + transferencia + terminal1 + terminal2 - gastos - retiro</div>
+        </div>
+      </div>
+    </div>
+
+    <button onclick="guardar()">💾 Guardar captura</button>
   </div>
 
   <div class="box">
@@ -67,7 +114,7 @@
 <script>
   const $ = (id) => document.getElementById(id);
 
-  console.log("CAPTURA CARGADA");
+  console.log("CAPTURA 2B CARGADA");
   console.log("TOKEN:", localStorage.getItem("token"));
 
   function hoyISO() {
@@ -109,13 +156,48 @@
       `Usuario: ${u.nombre} (${u.usuario}) | Rol: ${u.rol} | Tienda: ${u.id_tienda ?? 'GLOBAL'}`;
   }
 
+  function num(id){
+    const v = parseFloat($(id).value);
+    return isNaN(v) ? 0 : v;
+  }
+
+  function money(n){
+    return "$" + (n || 0).toFixed(2);
+  }
+
+  function recalcularTotal(){
+    const total =
+      num("efectivo") +
+      num("transferencia") +
+      num("terminal1") +
+      num("terminal2") -
+      num("gastos") -
+      num("retiro");
+
+    $("total").textContent = money(total);
+  }
+
+  function ajustarTurnoSegunFecha(){
+    const f = $("fecha").value;
+    if(!f) return;
+
+    if(f === hoyISO()){
+      const h = new Date().getHours();
+      const turnoAuto = (h < 16) ? "1" : "2"; // ajustable
+      $("turno").value = turnoAuto;
+      $("turno").disabled = true;
+      $("turnoHelp").textContent = "Hoy: turno automático según la hora.";
+    } else {
+      $("turno").disabled = false;
+      $("turnoHelp").textContent = "Fecha pasada: turno manual.";
+    }
+  }
+
   async function cargarTiendas() {
     const token = getToken();
 
     const res = await fetch('/api/tiendas', {
-      headers: {
-        'Authorization': 'Bearer ' + token
-      }
+      headers: { 'Authorization': 'Bearer ' + token }
     });
 
     const json = await res.json();
@@ -135,22 +217,64 @@
     });
   }
 
+  function aplicarPermisosTienda(){
+    const u = getUser();
+    if(!u) return;
+
+    // ADMIN: puede elegir tienda
+    if(u.rol === "ADMIN"){
+      $("id_tienda").disabled = false;
+      $("tiendaHelp").textContent = "ADMIN: puedes capturar para cualquier tienda.";
+      return;
+    }
+
+    // TIENDA: se bloquea y se fuerza su tienda
+    $("id_tienda").disabled = true;
+    $("tiendaHelp").textContent = "TIENDA: captura exclusiva de tu tienda.";
+
+    // Forzar valor
+    if(u.id_tienda){
+      $("id_tienda").value = String(u.id_tienda);
+    }
+  }
+
   async function guardar() {
     if (!validarLogin()) return;
 
     const token = getToken();
+    const u = getUser();
 
     const body = {
       fecha: $('fecha').value,
+      turno: Number($('turno').value),
       id_tienda: Number($('id_tienda').value),
-      efectivo: Number($('efectivo').value || 0),
-      transferencia: Number($('transferencia').value || 0),
-      tarjeta: Number($('tarjeta').value || 0)
+
+      efectivo: num('efectivo'),
+      transferencia: num('transferencia'),
+      terminal1: num('terminal1'),
+      terminal2: num('terminal2'),
+      gastos: num('gastos'),
+      retiro: num('retiro'),
+      fondo_inicial: num('fondo_inicial'),
+
+      total: (
+        num("efectivo") +
+        num("transferencia") +
+        num("terminal1") +
+        num("terminal2") -
+        num("gastos") -
+        num("retiro")
+      )
     };
 
-    if (!body.fecha || !body.id_tienda) {
-      alert("Falta fecha o tienda");
+    if (!body.fecha || !body.id_tienda || !body.turno) {
+      alert("Falta fecha, tienda o turno");
       return;
+    }
+
+    // seguridad extra: si no es admin, forzar id_tienda desde usuario
+    if(u && u.rol !== "ADMIN"){
+      body.id_tienda = Number(u.id_tienda);
     }
 
     const res = await fetch('/api/reportes', {
@@ -166,18 +290,35 @@
     $('out').textContent = JSON.stringify(json, null, 2);
 
     if (json.ok) {
-      alert("✅ Reporte guardado");
+      alert("✅ Captura guardada");
     } else {
-      alert("❌ " + (json.mensaje || json.error || "Error"));
+      // Mensaje especial duplicado (lo haremos en backend)
+      if(json.code === "DUPLICADO"){
+        alert("⚠️ Ya existe captura para este turno");
+      } else {
+        alert("❌ " + (json.mensaje || json.error || "Error"));
+      }
     }
   }
 
   // INIT
   $('fecha').value = hoyISO();
+  ajustarTurnoSegunFecha();
+  recalcularTotal();
+
+  $("fecha").addEventListener("change", () => {
+    ajustarTurnoSegunFecha();
+  });
+
+  ["efectivo","transferencia","terminal1","terminal2","gastos","retiro","fondo_inicial"]
+    .forEach(id => $(id).addEventListener("input", recalcularTotal));
 
   if (validarLogin()) {
     setInfoUsuario();
-    cargarTiendas();
+
+    cargarTiendas().then(() => {
+      aplicarPermisosTienda();
+    });
   }
 </script>
 
