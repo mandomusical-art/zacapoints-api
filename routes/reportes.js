@@ -422,6 +422,9 @@ router.get('/diario/hoy', requireAuth, (req, res) => {
     });
   }
 );
+router.get('/diario/hoy', requireAuth, (req, res) => {
+  res.json({ ok: true, mensaje: "diario/hoy OK" });
+});
 
 
 
