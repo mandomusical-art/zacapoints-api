@@ -1,235 +1,11 @@
-const express = require('express');
-const router = express.Router();
-const db = require('../db/mysql');
-const { requireAuth, requireRole } = require('../middlewares/auth');
+router.post('/diario', requireAuth, (req, res) => {
 
-// =============================
-// Ping
-// =============================
-router.get('/ping', (req, res) => {
-  res.json({ ok: true, ping: 'reportes router ok' });
-});
-
-// =====================================================
-// GET /api/reportes (CONSULTAR + FILTROS)
-// =====================================================
-router.get('/', requireAuth, (req, res) => {
-  const { fecha, id_tienda, desde, hasta, anio, mes } = req.query;
-
-  let sql = `
-    SELECT
-      r.id_reporte,
-      r.fecha,
-      r.turno,
-      r.id_tienda,
-      r.id_usuario,
-      r.efectivo,
-      r.transferencia,
-      r.terminal1,
-      r.terminal2,
-      r.gastos,
-      r.retiro,
-      r.fondo_inicial,
-      r.total,
-      r.fecha_registro
-    FROM reportes_diarios r
-    WHERE 1=1
-  `;
-
-  const params = [];
-
-  if (fecha) {
-    sql += ' AND r.fecha = ?';
-    params.push(fecha);
-  }
-
-  if (id_tienda) {
-    sql += ' AND r.id_tienda = ?';
-    params.push(id_tienda);
-  }
-
-  if (desde && hasta) {
-    sql += ' AND r.fecha BETWEEN ? AND ?';
-    params.push(desde, hasta);
-  }
-
-  if (anio && mes) {
-    sql += ' AND YEAR(r.fecha) = ? AND MONTH(r.fecha) = ?';
-    params.push(anio, mes);
-  }
-
-  sql += ' ORDER BY r.fecha DESC, r.id_tienda ASC, r.turno ASC';
-
-  db.query(sql, params, (err, rows) => {
-    if (err) {
-      return res.status(500).json({ ok: false, error: err.message });
-    }
-
-    const totales = rows.reduce(
-      (acc, r) => {
-        acc.efectivo += Number(r.efectivo);
-        acc.transferencia += Number(r.transferencia);
-        acc.terminal1 += Number(r.terminal1);
-        acc.terminal2 += Number(r.terminal2);
-        acc.total += Number(r.total);
-        return acc;
-      },
-      { efectivo: 0, transferencia: 0, terminal1: 0, terminal2: 0, total: 0 }
-    );
-
-    res.json({
-      ok: true,
-      filtros: { fecha, id_tienda, desde, hasta, anio, mes },
-      registros: rows.length,
-      totales,
-      data: rows
-    });
-  });
-});
-
-// =====================================================
-// GET /api/reportes/resumen-mes?anio=YYYY&mes=MM
-// =====================================================
-router.get('/resumen-mes', requireAuth, (req, res) => {
-  const { anio, mes } = req.query;
-
-  if (!anio || !mes) {
-    return res.status(400).json({
-      ok: false,
-      mensaje: 'Debes enviar anio y mes. Ej: ?anio=2026&mes=2'
-    });
-  }
-
-  const sql = `
-    SELECT
-      t.id_tienda,
-      t.nombre AS tienda,
-      COALESCE(SUM(r.efectivo), 0) AS efectivo,
-      COALESCE(SUM(r.transferencia), 0) AS transferencia,
-      COALESCE(SUM(r.terminal1), 0) AS terminal1,
-      COALESCE(SUM(r.terminal2), 0) AS terminal2,
-      COALESCE(SUM(r.total), 0) AS total
-    FROM tiendas t
-    LEFT JOIN reportes_diarios r
-      ON r.id_tienda = t.id_tienda
-      AND YEAR(r.fecha) = ?
-      AND MONTH(r.fecha) = ?
-    WHERE t.activo = 1
-    GROUP BY t.id_tienda, t.nombre
-    ORDER BY t.id_tienda ASC
-  `;
-
-  db.query(sql, [anio, mes], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ ok: false, error: err.message });
-    }
-
-    const totales = rows.reduce(
-      (acc, r) => {
-        acc.efectivo += Number(r.efectivo);
-        acc.transferencia += Number(r.transferencia);
-        acc.terminal1 += Number(r.terminal1);
-        acc.terminal2 += Number(r.terminal2);
-        acc.total += Number(r.total);
-        return acc;
-      },
-      { efectivo: 0, transferencia: 0, terminal1: 0, terminal2: 0, total: 0 }
-    );
-
-    res.json({
-      ok: true,
-      filtros: { anio, mes },
-      totales,
-      tiendas: rows
-    });
-  });
-});
-
-// =====================================================
-// Helpers CDMX
-// =====================================================
-function getFechaCDMX() {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
-}
-
-function getHoraCDMX() {
-  return Number(
-    new Date().toLocaleString("en-US", {
-      timeZone: "America/Mexico_City",
-      hour: "2-digit",
-      hour12: false
-    })
-  );
-}
-
-function calcularTurnoCDMX() {
-  const h = getHoraCDMX();
-  if (h >= 8 && h < 16) return 1;
-  if (h >= 16 && h < 23) return 2;
-  return 0;
-}
-
-// =====================================================
-// GET /api/reportes/diario/hoy
-// =====================================================
-router.get('/diario/hoy', requireAuth, requireRole('TIENDA'), (req, res) => {
-  const { id_tienda } = req.user;
-
-  const fecha = getFechaCDMX();
-  const turno = calcularTurnoCDMX();
-
-  if (turno === 0) {
-    return res.json({
-      ok: true,
-      existe: false,
-      fueraHorario: true,
-      mensaje: "Fuera de horario (08:00 a 23:00)",
-      fecha,
-      turno
-    });
-  }
-
-  const sql = `
-    SELECT *
-    FROM reportes_diarios
-    WHERE id_tienda = ?
-      AND fecha = ?
-      AND turno = ?
-    LIMIT 1
-  `;
-
-  db.query(sql, [id_tienda, fecha, turno], (err, rows) => {
-    if (err) return res.status(500).json({ ok: false, error: err.message });
-
-    if (rows.length > 0) {
-      return res.json({
-        ok: true,
-        existe: true,
-        fecha,
-        turno,
-        data: rows[0]
-      });
-    }
-
-    return res.json({
-      ok: true,
-      existe: false,
-      fecha,
-      turno
-    });
-  });
-});
-
-// =====================================================
-// POST /api/reportes/diario
-// Captura diaria por turnos (retroactiva)
-// =====================================================
-router.post('/diario', requireAuth, requireRole('TIENDA'), (req, res) => {
-  const { id_usuario, id_tienda } = req.user;
+  const { id_usuario, id_tienda: tiendaSesion, rol } = req.user;
 
   let {
     fecha,
     turno,
+    id_tienda, // solo ADMIN
     efectivo = 0,
     transferencia = 0,
     terminal1 = 0,
@@ -239,7 +15,25 @@ router.post('/diario', requireAuth, requireRole('TIENDA'), (req, res) => {
     fondo_inicial = 0
   } = req.body;
 
-  // Fecha default = hoy CDMX
+  // =========================
+  // TIENDA FINAL SEGÚN ROL
+  // =========================
+  let tiendaFinal = null;
+
+  if (rol === "ADMIN") {
+    id_tienda = Number(id_tienda);
+    if (!id_tienda) {
+      return res.status(400).json({ ok: false, mensaje: "ADMIN: falta id_tienda" });
+    }
+    tiendaFinal = id_tienda;
+  } else {
+    // TIENDA
+    tiendaFinal = Number(tiendaSesion);
+  }
+
+  // =========================
+  // FECHA DEFAULT CDMX
+  // =========================
   const hoy = getFechaCDMX();
   if (!fecha) fecha = hoy;
 
@@ -248,7 +42,9 @@ router.post('/diario', requireAuth, requireRole('TIENDA'), (req, res) => {
     return res.status(400).json({ ok: false, mensaje: "No se permite fecha futura" });
   }
 
-  // Turno
+  // =========================
+  // TURNO
+  // =========================
   if (fecha === hoy) {
     // hoy = turno automático
     turno = calcularTurnoCDMX();
@@ -269,7 +65,9 @@ router.post('/diario', requireAuth, requireRole('TIENDA'), (req, res) => {
     }
   }
 
-  // Validar números
+  // =========================
+  // VALIDAR NÚMEROS
+  // =========================
   const valores = { efectivo, transferencia, terminal1, terminal2, gastos, retiro, fondo_inicial };
   for (const k in valores) {
     const v = Number(valores[k]);
@@ -278,12 +76,16 @@ router.post('/diario', requireAuth, requireRole('TIENDA'), (req, res) => {
     valores[k] = v;
   }
 
-  // Total recomendado
+  // =========================
+  // TOTAL CORRECTO
+  // =========================
   const total =
     valores.efectivo +
     valores.transferencia +
     valores.terminal1 +
-    valores.terminal2;
+    valores.terminal2 -
+    valores.gastos -
+    valores.retiro;
 
   const sql = `
     INSERT INTO reportes_diarios
@@ -296,7 +98,7 @@ router.post('/diario', requireAuth, requireRole('TIENDA'), (req, res) => {
   `;
 
   const params = [
-    fecha, turno, id_tienda, id_usuario,
+    fecha, turno, tiendaFinal, id_usuario,
     valores.efectivo, valores.transferencia, valores.terminal1, valores.terminal2,
     valores.gastos, valores.retiro, valores.fondo_inicial, total
   ];
@@ -306,7 +108,8 @@ router.post('/diario', requireAuth, requireRole('TIENDA'), (req, res) => {
       if (err.code === 'ER_DUP_ENTRY') {
         return res.status(409).json({
           ok: false,
-          mensaje: "Ya existe captura para esta tienda en esta fecha y turno"
+          code: "DUPLICADO",
+          mensaje: "Ya existe captura para este turno"
         });
       }
       return res.status(500).json({ ok: false, error: err.message });
@@ -318,10 +121,10 @@ router.post('/diario', requireAuth, requireRole('TIENDA'), (req, res) => {
       id_reporte: result.insertId,
       fecha,
       turno,
+      id_tienda: tiendaFinal,
       total
     });
   });
 });
 
-module.exports = router;
 
