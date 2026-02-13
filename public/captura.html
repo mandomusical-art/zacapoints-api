@@ -21,6 +21,8 @@
     .totalBox { background:#f0fff5; border:1px solid #b7f7c8; padding:12px; border-radius:10px; margin-top:14px; }
     .totalNum { font-size:22px; font-weight:bold; }
     .mini { font-size:12px; opacity:.7; margin-top:4px; }
+    .btnBlue{ background:#2563eb; }
+    .btnBlue:hover{ background:#1d4ed8; }
   </style>
 </head>
 
@@ -30,7 +32,13 @@
   <div class="muted" id="infoUser">Cargando usuario...</div>
 
   <div class="box">
-    <div class="row">
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btnBlue" onclick="volver()">⬅ Volver</button>
+      <button onclick="guardar()">💾 Guardar captura</button>
+    </div>
+
+    <div class="row" style="margin-top:10px;">
       <div class="col">
         <label>Fecha</label>
         <input type="date" id="fecha">
@@ -102,8 +110,6 @@
         </div>
       </div>
     </div>
-
-    <button onclick="guardar()">💾 Guardar captura</button>
   </div>
 
   <div class="box">
@@ -114,8 +120,9 @@
 <script>
   const $ = (id) => document.getElementById(id);
 
-  console.log("CAPTURA 2B CARGADA");
-  console.log("TOKEN:", localStorage.getItem("token"));
+  function volver(){
+    window.location.href = "/";
+  }
 
   function hoyISO() {
     const d = new Date();
@@ -183,7 +190,7 @@
 
     if(f === hoyISO()){
       const h = new Date().getHours();
-      const turnoAuto = (h < 16) ? "1" : "2"; // ajustable
+      const turnoAuto = (h < 16) ? "1" : "2";
       $("turno").value = turnoAuto;
       $("turno").disabled = true;
       $("turnoHelp").textContent = "Hoy: turno automático según la hora.";
@@ -221,18 +228,15 @@
     const u = getUser();
     if(!u) return;
 
-    // ADMIN: puede elegir tienda
     if(u.rol === "ADMIN"){
       $("id_tienda").disabled = false;
       $("tiendaHelp").textContent = "ADMIN: puedes capturar para cualquier tienda.";
       return;
     }
 
-    // TIENDA: se bloquea y se fuerza su tienda
     $("id_tienda").disabled = true;
     $("tiendaHelp").textContent = "TIENDA: captura exclusiva de tu tienda.";
 
-    // Forzar valor
     if(u.id_tienda){
       $("id_tienda").value = String(u.id_tienda);
     }
@@ -247,6 +251,8 @@
     const body = {
       fecha: $('fecha').value,
       turno: Number($('turno').value),
+
+      // ADMIN manda id_tienda, TIENDA se fuerza en backend
       id_tienda: Number($('id_tienda').value),
 
       efectivo: num('efectivo'),
@@ -255,29 +261,20 @@
       terminal2: num('terminal2'),
       gastos: num('gastos'),
       retiro: num('retiro'),
-      fondo_inicial: num('fondo_inicial'),
-
-      total: (
-        num("efectivo") +
-        num("transferencia") +
-        num("terminal1") +
-        num("terminal2") -
-        num("gastos") -
-        num("retiro")
-      )
+      fondo_inicial: num('fondo_inicial')
     };
 
-    if (!body.fecha || !body.id_tienda || !body.turno) {
-      alert("Falta fecha, tienda o turno");
+    if (!body.fecha) {
+      alert("Falta fecha");
       return;
     }
 
-    // seguridad extra: si no es admin, forzar id_tienda desde usuario
+    // seguridad extra: si no es admin, no mandamos tienda
     if(u && u.rol !== "ADMIN"){
-      body.id_tienda = Number(u.id_tienda);
+      delete body.id_tienda;
     }
 
-    const res = await fetch('/api/reportes', {
+    const res = await fetch('/api/reportes/diario', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -286,20 +283,22 @@
       body: JSON.stringify(body)
     });
 
-    const json = await res.json();
-    $('out').textContent = JSON.stringify(json, null, 2);
+    // Duplicado
+    if(res.status === 409){
+      const text = await res.text();
 
-    if (json.ok) {
-      alert("✅ Captura guardada");
-    } else {
-      // Mensaje especial duplicado (lo haremos en backend)
-      if(json.code === "DUPLICADO"){
-        alert("⚠️ Ya existe captura para este turno");
-      } else {
-        alert("❌ " + (json.mensaje || json.error || "Error"));
-      }
-    }
-  }
+let json = null;
+try { json = JSON.parse(text); } catch { json = null; }
+
+$('out').textContent = json ? JSON.stringify(json, null, 2) : text;
+
+if (!res.ok) {
+  alert("❌ " + (json?.mensaje || json?.error || "Error"));
+  return;
+}
+
+alert("✅ Captura guardada");
+
 
   // INIT
   $('fecha').value = hoyISO();
@@ -315,10 +314,7 @@
 
   if (validarLogin()) {
     setInfoUsuario();
-
-    cargarTiendas().then(() => {
-      aplicarPermisosTienda();
-    });
+    cargarTiendas().then(() => aplicarPermisosTienda());
   }
 </script>
 

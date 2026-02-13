@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Reportes Santa Anita EDITADO - Reportes</title>
+  <title>Reportes Santa Anita - Reportes</title>
 
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #f6f6f6; }
@@ -23,56 +23,59 @@
     button:hover { background: #0a4; }
     .muted { opacity: .7; font-size: 13px; }
     .danger { color: #b00; font-weight: bold; }
-    .encabezado{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  margin-bottom:6px;
-}
 
-.logo{
-  width:52px;
-  height:52px;
-  object-fit:contain;
-  background:white;
-  padding:6px;
-  border-radius:14px;
-  box-shadow:0 6px 14px rgba(0,0,0,.12);
-}
+    .encabezado{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      margin-bottom:6px;
+    }
+
+    .logo{
+      width:52px;
+      height:52px;
+      object-fit:contain;
+      background:white;
+      padding:6px;
+      border-radius:14px;
+      box-shadow:0 6px 14px rgba(0,0,0,.12);
+    }
+
+    .btnBlue{ background:#2563eb; }
+    .btnBlue:hover{ background:#1d4ed8; }
   </style>
 </head>
 
 <body>
 
   <div class="encabezado">
-  <img src="/img/logo.png" class="logo">
-  <h1>Reportes Santa Anita</h1>
+    <img src="/img/logo.png" class="logo">
+    <h1>Reportes Santa Anita</h1>
   </div>
-  
+
   <div class="muted" id="infoUser">Cargando...</div>
 
   <div class="box">
-  <div class="controls">
-    <div>
-      <label>Año</label><br>
-      <select id="anio"></select>
+    <div class="controls">
+      <div>
+        <label>Año</label><br>
+        <select id="anio"></select>
+      </div>
+
+      <div>
+        <label>Mes</label><br>
+        <select id="mes"></select>
+      </div>
+
+      <button onclick="cargar()">🔄 Consultar</button>
+      <button class="btnBlue" onclick="irCaptura()">🧾 Ir a Captura</button>
     </div>
 
-    <div>
-      <label>Mes</label><br>
-      <select id="mes"></select>
-    </div>
-
-    <button onclick="cargar()">🔄 Consultar</button>
-    <button onclick="irCaptura()" style="background:#2563eb;">🧾 Ir a Captura</button>
+    <div class="muted" id="msgRol" style="margin-top:10px;"></div>
   </div>
-</div>
-function irCaptura(){
-  window.location.href = "/captura.html";
-}
 
-
-  <div class="box">
+  <!-- ADMIN ONLY -->
+  <div class="box" id="boxTotalesMes">
     <h2>Totales globales del mes</h2>
     <div class="row">
       <div class="card">
@@ -84,8 +87,12 @@ function irCaptura(){
         <p id="t_transferencia">$0</p>
       </div>
       <div class="card">
-        <h3>Tarjeta</h3>
-        <p id="t_tarjeta">$0</p>
+        <h3>Terminal 1</h3>
+        <p id="t_terminal1">$0</p>
+      </div>
+      <div class="card">
+        <h3>Terminal 2</h3>
+        <p id="t_terminal2">$0</p>
       </div>
       <div class="card">
         <h3>Total</h3>
@@ -94,7 +101,8 @@ function irCaptura(){
     </div>
   </div>
 
-  <div class="box">
+  <!-- ADMIN ONLY -->
+  <div class="box" id="boxPorTienda">
     <h2>Totales por tienda</h2>
     <table>
       <thead>
@@ -103,7 +111,8 @@ function irCaptura(){
           <th>Tienda</th>
           <th>Efectivo</th>
           <th>Transferencia</th>
-          <th>Tarjeta</th>
+          <th>Terminal 1</th>
+          <th>Terminal 2</th>
           <th>Total</th>
         </tr>
       </thead>
@@ -111,16 +120,12 @@ function irCaptura(){
     </table>
   </div>
 
+<script>
   const $ = (id) => document.getElementById(id);
 
   function irCaptura(){
-  window.location.href = "/captura.html";
-}
-
-
-<script>
-  
-
+    window.location.href = "/captura.html";
+  }
 
   function money(n) {
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
@@ -156,6 +161,17 @@ function irCaptura(){
 
     $('infoUser').textContent =
       `Usuario: ${u.nombre} (${u.usuario}) | Rol: ${u.rol} | Tienda: ${u.id_tienda ?? 'GLOBAL'}`;
+
+    // UI por rol
+    if(u.rol !== "ADMIN"){
+      $("msgRol").textContent = "🔒 Vista TIENDA: aquí NO se muestran totales globales. Usa Captura.";
+      $("boxTotalesMes").style.display = "none";
+      $("boxPorTienda").style.display = "none";
+    } else {
+      $("msgRol").textContent = "👑 Vista ADMIN: puedes consultar resumen global por mes.";
+      $("boxTotalesMes").style.display = "block";
+      $("boxPorTienda").style.display = "block";
+    }
   }
 
   function llenarSelects() {
@@ -166,7 +182,6 @@ function irCaptura(){
     $('anio').innerHTML = '';
     $('mes').innerHTML = '';
 
-    // Años
     for (let a = anioActual - 2; a <= anioActual + 1; a++) {
       const opt = document.createElement('option');
       opt.value = a;
@@ -175,7 +190,6 @@ function irCaptura(){
       $('anio').appendChild(opt);
     }
 
-    // Meses
     const meses = [
       "Enero","Febrero","Marzo","Abril","Mayo","Junio",
       "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"
@@ -193,6 +207,15 @@ function irCaptura(){
   async function cargar() {
     if (!validarLogin()) return;
 
+    const u = getUser();
+    if(!u) return;
+
+    // 🔒 Bloquear consulta global a TIENDA
+    if(u.rol !== "ADMIN"){
+      alert("🔒 Solo ADMIN puede consultar resumen global.");
+      return;
+    }
+
     const token = getToken();
 
     const anio = $('anio').value;
@@ -201,9 +224,7 @@ function irCaptura(){
     const url = `/api/reportes/resumen-mes?anio=${anio}&mes=${mes}`;
 
     const res = await fetch(url, {
-      headers: {
-        'Authorization': 'Bearer ' + token
-      }
+      headers: { 'Authorization': 'Bearer ' + token }
     });
 
     const json = await res.json();
@@ -216,7 +237,8 @@ function irCaptura(){
     // Totales globales
     $('t_efectivo').textContent = money(json.totales.efectivo);
     $('t_transferencia').textContent = money(json.totales.transferencia);
-    $('t_tarjeta').textContent = money(json.totales.tarjeta);
+    $('t_terminal1').textContent = money(json.totales.terminal1);
+    $('t_terminal2').textContent = money(json.totales.terminal2);
     $('t_total').textContent = money(json.totales.total);
 
     // Tabla por tienda
@@ -230,7 +252,8 @@ function irCaptura(){
         <td>${t.tienda}</td>
         <td>${money(t.efectivo)}</td>
         <td>${money(t.transferencia)}</td>
-        <td>${money(t.tarjeta)}</td>
+        <td>${money(t.terminal1)}</td>
+        <td>${money(t.terminal2)}</td>
         <td><b>${money(t.total)}</b></td>
       `;
       tbody.appendChild(tr);
@@ -239,19 +262,14 @@ function irCaptura(){
 
   // INIT
   if (validarLogin()) {
-  setInfoUsuario();
-  llenarSelects();
+    setInfoUsuario();
+    llenarSelects();
 
-  const u = getUser();
-
-  if (u && u.rol === "ADMIN") {
-    cargar();
-  } else {
-    // TIENDA: no auto-consultar
-    document.getElementById("tabla").innerHTML = "";
+    const u = getUser();
+    if(u && u.rol === "ADMIN"){
+      cargar();
+    }
   }
-}
-
 </script>
 
 </body>
