@@ -310,12 +310,18 @@ alert("✅ Captura guardada");
   });
 
   ["efectivo","transferencia","terminal1","terminal2","gastos","retiro","fondo_inicial"]
-    .forEach(id => $(id).addEventListener("input", recalcularTotal));
+  .forEach(id => {
+    $(id).addEventListener("input", recalcularTotal);
+    $(id).addEventListener("change", recalcularTotal);
+  });
 
   if (validarLogin()) {
     setInfoUsuario();
-    cargarTiendas().then(() => aplicarPermisosTienda());
-  }
+    cargarTiendas().then(() => {
+  aplicarPermisosTienda();
+  recalcularTotal();
+});
+
 </script>
 
 </body>
