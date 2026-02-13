@@ -111,12 +111,15 @@ function irCaptura(){
     </table>
   </div>
 
-<script>
   const $ = (id) => document.getElementById(id);
 
   function irCaptura(){
   window.location.href = "/captura.html";
 }
+
+
+<script>
+  
 
 
   function money(n) {
@@ -236,10 +239,19 @@ function irCaptura(){
 
   // INIT
   if (validarLogin()) {
-    setInfoUsuario();
-    llenarSelects();
+  setInfoUsuario();
+  llenarSelects();
+
+  const u = getUser();
+
+  if (u && u.rol === "ADMIN") {
     cargar();
+  } else {
+    // TIENDA: no auto-consultar
+    document.getElementById("tabla").innerHTML = "";
   }
+}
+
 </script>
 
 </body>
