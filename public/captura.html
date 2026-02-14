@@ -121,8 +121,9 @@
 const $ = (id) => document.getElementById(id);
 
 function volver(){
-  window.location.href = "/dashboard.html";
+  window.location.assign("dashboard.html");
 }
+
 
 function hoyISO() {
   const d = new Date();
@@ -154,18 +155,24 @@ function validarLogin() {
 
 function setInfoUsuario() {
   const u = getUser();
+
   if (!u) {
-    $('infoUser').innerHTML = `<span style="color:#b00;font-weight:bold;">⚠️ No hay usuario guardado</span>`;
+    $('infoUser').innerHTML =
+      `<span style="color:#b00;font-weight:bold;">⚠️ No hay usuario guardado</span>`;
     return;
   }
 
   $('infoUser').textContent =
-  `Usuario: ${u.nombre} (${u.usuario}) | Rol: ${u.rol} | Tienda: ${u.id_tienda ?? 'GLOBAL'}`;
+    `Usuario: ${u.nombre} (${u.usuario}) | Rol: ${u.rol} | Tienda: ${u.id_tienda ?? 'GLOBAL'}`;
 
+  // Debug solo visible para ADMIN
   if (u.rol === "ADMIN") {
-  document.getElementById("boxRespuesta").style.display = "block";
+    $("boxRespuesta").style.display = "block";
+  } else {
+    $("boxRespuesta").style.display = "none";
+  }
 }
-}
+
 
 
 
@@ -208,29 +215,40 @@ function ajustarTurnoSegunFecha(){
   }
 }
 
-async function cargarTiendas() {
-  const token = getToken();
+aasync function cargarTiendas() {
+  try {
+    const token = getToken();
 
-  const res = await fetch('/api/tiendas', {
-    headers: { 'Authorization': 'Bearer ' + token }
-  });
+    const res = await fetch('/api/tiendas', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
 
-  const json = await res.json();
+    const text = await res.text();
 
-  if (!json.ok) {
-    alert(json.mensaje || json.error || 'Error cargando tiendas');
-    return;
+    let json = null;
+    try { json = JSON.parse(text); } catch { json = null; }
+
+    if (!json || !json.ok) {
+      console.error("Respuesta tiendas:", text);
+      alert(json?.mensaje || json?.error || "Error cargando tiendas");
+      return;
+    }
+
+    $('id_tienda').innerHTML = '';
+
+    json.tiendas.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.id_tienda;
+      opt.textContent = `${t.id_tienda} - ${t.nombre}`;
+      $('id_tienda').appendChild(opt);
+    });
+
+  } catch (err) {
+    console.error("Error en cargarTiendas:", err);
+    alert("Error cargando tiendas (fetch)");
   }
-
-  $('id_tienda').innerHTML = '';
-
-  json.tiendas.forEach(t => {
-    const opt = document.createElement('option');
-    opt.value = t.id_tienda;
-    opt.textContent = `${t.id_tienda} - ${t.nombre}`;
-    $('id_tienda').appendChild(opt);
-  });
 }
+
 
 function aplicarPermisosTienda(){
   const u = getUser();
@@ -312,7 +330,10 @@ async function guardar() {
 // =======================
 // INIT
 // =======================
+
 window.addEventListener("DOMContentLoaded", () => {
+  console.log("CAPTURA CARGÓ OK");
+
 
   $("fecha").value = hoyISO();
   ajustarTurnoSegunFecha();
@@ -338,9 +359,6 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
 });
-}
 </script>
-
-
 </body>
 </html>
