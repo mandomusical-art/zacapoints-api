@@ -161,9 +161,10 @@ function setInfoUsuario() {
 
   $('infoUser').textContent =
     `Usuario: ${u.nombre} (${u.usuario}) | Rol: ${u.rol} | Tienda: ${u.id_tienda ?? 'GLOBAL'}`;
-}
+
   if (u.rol === "ADMIN") {
   document.getElementById("boxRespuesta").style.display = "block";
+}
 }
 
 
@@ -311,26 +312,32 @@ async function guardar() {
 // =======================
 // INIT
 // =======================
-$("fecha").value = hoyISO();
-ajustarTurnoSegunFecha();
-recalcularTotal();
+window.addEventListener("DOMContentLoaded", () => {
 
-$("fecha").addEventListener("change", ajustarTurnoSegunFecha);
+  $("fecha").value = hoyISO();
+  ajustarTurnoSegunFecha();
+  recalcularTotal();
 
-const campos = ["efectivo","transferencia","terminal1","terminal2","gastos","retiro","fondo_inicial"];
-campos.forEach(id => {
-  const el = $(id);
-  if(!el) return;
-  el.addEventListener("input", recalcularTotal);
-  el.addEventListener("change", recalcularTotal);
-});
+  $("fecha").addEventListener("change", ajustarTurnoSegunFecha);
 
-if (validarLogin()) {
-  setInfoUsuario();
-  cargarTiendas().then(() => {
-    aplicarPermisosTienda();
-    recalcularTotal();
+  const campos = ["efectivo","transferencia","terminal1","terminal2","gastos","retiro","fondo_inicial"];
+  campos.forEach(id => {
+    const el = $(id);
+    if(!el) return;
+    el.addEventListener("input", recalcularTotal);
+    el.addEventListener("change", recalcularTotal);
+    el.addEventListener("keyup", recalcularTotal);
   });
+
+  if (validarLogin()) {
+    setInfoUsuario();
+    cargarTiendas().then(() => {
+      aplicarPermisosTienda();
+      recalcularTotal();
+    });
+  }
+
+});
 }
 </script>
 
