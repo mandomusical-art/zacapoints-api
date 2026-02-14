@@ -121,216 +121,217 @@
 
 
 <script>
-  const $ = (id) => document.getElementById(id);
+const $ = (id) => document.getElementById(id);
 
-  function volver(){
-    window.location.href = "/";
-  }
-
-  function hoyISO() {
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  function getToken() {
-    return localStorage.getItem('token');
-  }
-
-  function getUser() {
-    const raw = localStorage.getItem('usuario');
-    if (!raw) return null;
-    try { return JSON.parse(raw); } catch { return null; }
-  }
-
-  function validarLogin() {
-    const token = getToken();
-    if (!token) {
-      alert("No has iniciado sesión");
-      window.location.href = "/login.html";
-      return false;
-    }
-    return true;
-  }
-
-  function setInfoUsuario() {
-    const u = getUser();
-    if (!u) {
-      $('infoUser').innerHTML = `<span class="danger">⚠️ No hay info de usuario guardada (solo token). Corrige login.html</span>`;
-      return;
-    }
-
-    $('infoUser').textContent =
-      `Usuario: ${u.nombre} (${u.usuario}) | Rol: ${u.rol} | Tienda: ${u.id_tienda ?? 'GLOBAL'}`;
-  }
-
-  function num(id){
-    const v = parseFloat($(id).value);
-    return isNaN(v) ? 0 : v;
-  }
-
-  function money(n){
-    return "$" + (n || 0).toFixed(2);
-  }
-
-  function recalcularTotal(){
-    const total =
-      num("efectivo") +
-      num("transferencia") +
-      num("terminal1") +
-      num("terminal2") -
-      num("gastos") -
-      num("retiro");
-
-    $("total").textContent = money(total);
-  }
-
-  function ajustarTurnoSegunFecha(){
-    const f = $("fecha").value;
-    if(!f) return;
-
-    if(f === hoyISO()){
-      const h = new Date().getHours();
-      const turnoAuto = (h < 16) ? "1" : "2";
-      $("turno").value = turnoAuto;
-      $("turno").disabled = true;
-      $("turnoHelp").textContent = "Hoy: turno automático según la hora.";
-    } else {
-      $("turno").disabled = false;
-      $("turnoHelp").textContent = "Fecha pasada: turno manual.";
-    }
-  }
-
-  async function cargarTiendas() {
-    const token = getToken();
-
-    const res = await fetch('/api/tiendas', {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-
-    const json = await res.json();
-
-    if (!json.ok) {
-      alert(json.mensaje || json.error || 'Error cargando tiendas');
-      return;
-    }
-
-    $('id_tienda').innerHTML = '';
-
-    json.tiendas.forEach(t => {
-      const opt = document.createElement('option');
-      opt.value = t.id_tienda;
-      opt.textContent = `${t.id_tienda} - ${t.nombre}`;
-      $('id_tienda').appendChild(opt);
-    });
-  }
-
-  function aplicarPermisosTienda(){
-    const u = getUser();
-    if(!u) return;
-
-    if(u.rol === "ADMIN"){
-      $("id_tienda").disabled = false;
-      $("tiendaHelp").textContent = "ADMIN: puedes capturar para cualquier tienda.";
-      return;
-    }
-
-    $("id_tienda").disabled = true;
-    $("tiendaHelp").textContent = "TIENDA: captura exclusiva de tu tienda.";
-
-    if(u.id_tienda){
-      $("id_tienda").value = String(u.id_tienda);
-    }
-  }
-
-  async function guardar() {
-    if (!validarLogin()) return;
-
-    const token = getToken();
-    const u = getUser();
-
-    const body = {
-      fecha: $('fecha').value,
-      turno: Number($('turno').value),
-
-      // ADMIN manda id_tienda, TIENDA se fuerza en backend
-      id_tienda: Number($('id_tienda').value),
-
-      efectivo: num('efectivo'),
-      transferencia: num('transferencia'),
-      terminal1: num('terminal1'),
-      terminal2: num('terminal2'),
-      gastos: num('gastos'),
-      retiro: num('retiro'),
-      fondo_inicial: num('fondo_inicial')
-    };
-
-    if (!body.fecha) {
-      alert("Falta fecha");
-      return;
-    }
-
-    // seguridad extra: si no es admin, no mandamos tienda
-    if(u && u.rol !== "ADMIN"){
-      delete body.id_tienda;
-    }
-
-    const res = await fetch('/api/reportes/diario', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token
-      },
-      body: JSON.stringify(body)
-    });
-
-    // Duplicado
-    if(res.status === 409){
-      const text = await res.text();
-
-let json = null;
-try { json = JSON.parse(text); } catch { json = null; }
-
-$('out').textContent = json ? JSON.stringify(json, null, 2) : text;
-
-if (!res.ok) {
-  alert("❌ " + (json?.mensaje || json?.error || "Error"));
-  return;
+function volver(){
+  window.location.href = "/dashboard.html";
 }
 
-alert("✅ Captura guardada");
+function hoyISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
 
+function getToken() {
+  return localStorage.getItem('token');
+}
 
-  // INIT
-  $('fecha').value = hoyISO();
-  ajustarTurnoSegunFecha();
-  recalcularTotal();
+function getUser() {
+  const raw = localStorage.getItem('usuario');
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
 
-  $("fecha").addEventListener("change", () => {
-    ajustarTurnoSegunFecha();
+function validarLogin() {
+  const token = getToken();
+  if (!token) {
+    alert("No has iniciado sesión");
+    window.location.href = "/login.html";
+    return false;
+  }
+  return true;
+}
+
+function setInfoUsuario() {
+  const u = getUser();
+  if (!u) {
+    $('infoUser').innerHTML = `<span style="color:#b00;font-weight:bold;">⚠️ No hay usuario guardado</span>`;
+    return;
+  }
+
+  $('infoUser').textContent =
+    `Usuario: ${u.nombre} (${u.usuario}) | Rol: ${u.rol} | Tienda: ${u.id_tienda ?? 'GLOBAL'}`;
+}
+
+function num(id){
+  const el = $(id);
+  if(!el) return 0;
+  const v = parseFloat(el.value);
+  return isNaN(v) ? 0 : v;
+}
+
+function money(n){
+  return "$" + (Number(n || 0)).toFixed(2);
+}
+
+function recalcularTotal(){
+  const total =
+    num("efectivo") +
+    num("transferencia") +
+    num("terminal1") +
+    num("terminal2") -
+    num("gastos") -
+    num("retiro");
+
+  $("total").textContent = money(total);
+}
+
+function ajustarTurnoSegunFecha(){
+  const f = $("fecha").value;
+  if(!f) return;
+
+  if(f === hoyISO()){
+    const h = new Date().getHours();
+    const turnoAuto = (h < 16) ? "1" : "2";
+    $("turno").value = turnoAuto;
+    $("turno").disabled = true;
+    $("turnoHelp").textContent = "Hoy: turno automático según la hora.";
+  } else {
+    $("turno").disabled = false;
+    $("turnoHelp").textContent = "Fecha pasada: turno manual.";
+  }
+}
+
+async function cargarTiendas() {
+  const token = getToken();
+
+  const res = await fetch('/api/tiendas', {
+    headers: { 'Authorization': 'Bearer ' + token }
   });
 
-  const campos = ["efectivo","transferencia","terminal1","terminal2","gastos","retiro","fondo_inicial"];
+  const json = await res.json();
 
+  if (!json.ok) {
+    alert(json.mensaje || json.error || 'Error cargando tiendas');
+    return;
+  }
+
+  $('id_tienda').innerHTML = '';
+
+  json.tiendas.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id_tienda;
+    opt.textContent = `${t.id_tienda} - ${t.nombre}`;
+    $('id_tienda').appendChild(opt);
+  });
+}
+
+function aplicarPermisosTienda(){
+  const u = getUser();
+  if(!u) return;
+
+  if(u.rol === "ADMIN"){
+    $("id_tienda").disabled = false;
+    $("tiendaHelp").textContent = "ADMIN: puedes capturar para cualquier tienda.";
+    return;
+  }
+
+  $("id_tienda").disabled = true;
+  $("tiendaHelp").textContent = "TIENDA: captura exclusiva de tu tienda.";
+
+  if(u.id_tienda){
+    $("id_tienda").value = String(u.id_tienda);
+  }
+}
+
+async function guardar() {
+  if (!validarLogin()) return;
+
+  const token = getToken();
+  const u = getUser();
+
+  const body = {
+    fecha: $('fecha').value,
+    turno: Number($('turno').value),
+
+    id_tienda: Number($('id_tienda').value),
+
+    efectivo: num('efectivo'),
+    transferencia: num('transferencia'),
+    terminal1: num('terminal1'),
+    terminal2: num('terminal2'),
+    gastos: num('gastos'),
+    retiro: num('retiro'),
+    fondo_inicial: num('fondo_inicial')
+  };
+
+  if (!body.fecha) {
+    alert("Falta fecha");
+    return;
+  }
+
+  if(u && u.rol !== "ADMIN"){
+    delete body.id_tienda;
+  }
+
+  const res = await fetch('/api/reportes/diario', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token
+    },
+    body: JSON.stringify(body)
+  });
+
+  const text = await res.text();
+
+  let json = null;
+  try { json = JSON.parse(text); } catch { json = null; }
+
+  $('out').textContent = json ? JSON.stringify(json, null, 2) : text;
+
+  if(res.status === 409){
+    alert("⚠️ Ya existe captura para este turno");
+    return;
+  }
+
+  if(!res.ok){
+    alert("❌ " + (json?.mensaje || json?.error || "Error"));
+    return;
+  }
+
+  alert("✅ Captura guardada");
+}
+
+// =======================
+// INIT
+// =======================
+$("fecha").value = hoyISO();
+ajustarTurnoSegunFecha();
+recalcularTotal();
+
+$("fecha").addEventListener("change", ajustarTurnoSegunFecha);
+
+const campos = ["efectivo","transferencia","terminal1","terminal2","gastos","retiro","fondo_inicial"];
 campos.forEach(id => {
   const el = $(id);
-  if (!el) return;
-
+  if(!el) return;
   el.addEventListener("input", recalcularTotal);
   el.addEventListener("change", recalcularTotal);
 });
 
-
-  if (validarLogin()) {
-    setInfoUsuario();
-    cargarTiendas().then(() => {
-  aplicarPermisosTienda();
-  recalcularTotal();
-});
-
+if (validarLogin()) {
+  setInfoUsuario();
+  cargarTiendas().then(() => {
+    aplicarPermisosTienda();
+    recalcularTotal();
+  });
+}
 </script>
+
 
 </body>
 </html>
