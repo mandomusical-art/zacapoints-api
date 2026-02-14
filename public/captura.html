@@ -117,6 +117,9 @@
     <pre id="out">{}</pre>
   </div>
 
+  alert("CAPTURA JS CARGÓ");
+
+
 <script>
   const $ = (id) => document.getElementById(id);
 
@@ -309,11 +312,16 @@ alert("✅ Captura guardada");
     ajustarTurnoSegunFecha();
   });
 
-  ["efectivo","transferencia","terminal1","terminal2","gastos","retiro","fondo_inicial"]
-  .forEach(id => {
-    $(id).addEventListener("input", recalcularTotal);
-    $(id).addEventListener("change", recalcularTotal);
-  });
+  const campos = ["efectivo","transferencia","terminal1","terminal2","gastos","retiro","fondo_inicial"];
+
+campos.forEach(id => {
+  const el = $(id);
+  if (!el) return;
+
+  el.addEventListener("input", recalcularTotal);
+  el.addEventListener("change", recalcularTotal);
+});
+
 
   if (validarLogin()) {
     setInfoUsuario();
