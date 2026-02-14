@@ -27,7 +27,9 @@
 </head>
 
 <body>
-
+<div style="background:yellow;color:black;padding:10px;font-weight:bold;">
+  CAPTURA EDITADA HOY 2026-02-13
+</div>
   <h1>🧾 Captura de Reporte Diario</h1>
   <div class="muted" id="infoUser">Cargando usuario...</div>
 
@@ -112,14 +114,12 @@
     </div>
   </div>
 
-  <div class="box">
-    <h3>Respuesta</h3>
-    <pre id="out">{}</pre>
-  </div>
+  <div class="box" id="boxRespuesta" style="display:none;">
+  <h3>Respuesta (debug)</h3>
+  <pre id="out">{}</pre>
+</div>
 
   alert("CAPTURA JS CARGÓ");
-
-
 <script>
 const $ = (id) => document.getElementById(id);
 
@@ -165,6 +165,11 @@ function setInfoUsuario() {
   $('infoUser').textContent =
     `Usuario: ${u.nombre} (${u.usuario}) | Rol: ${u.rol} | Tienda: ${u.id_tienda ?? 'GLOBAL'}`;
 }
+  if (u.rol === "ADMIN") {
+  document.getElementById("boxRespuesta").style.display = "block";
+}
+
+
 
 function num(id){
   const el = $(id);

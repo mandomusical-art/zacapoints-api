@@ -67,6 +67,14 @@
         <select id="mes"></select>
       </div>
 
+      <div>
+  <label>Fecha</label><br>
+  <input type="date" id="fechaDia" style="padding:10px;border-radius:8px;border:1px solid #ccc;">
+</div>
+
+<button class="btnBlue" onclick="cargarDia()">📅 Consultar día</button>
+
+
       <button onclick="cargar()">🔄 Consultar</button>
       <button class="btnBlue" onclick="irCaptura()">🧾 Ir a Captura</button>
     </div>
@@ -264,12 +272,81 @@
   if (validarLogin()) {
     setInfoUsuario();
     llenarSelects();
+    $("fechaDia").value = hoyISO();
+
 
     const u = getUser();
     if(u && u.rol === "ADMIN"){
       cargar();
     }
   }
+  function hoyISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+async function cargarDia() {
+  if (!validarLogin()) return;
+
+  const u = getUser();
+  if(!u || u.rol !== "ADMIN"){
+    alert("Solo ADMIN");
+    return;
+  }
+
+  const token = getToken();
+  const fecha = $("fechaDia").value;
+
+  if(!fecha){
+    alert("Elige una fecha");
+    return;
+  }
+
+  const url = `/api/reportes/resumen-dia?fecha=${fecha}`;
+
+  const res = await fetch(url, {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+
+  const json = await res.json();
+
+  if (!json.ok) {
+    alert(json.mensaje || json.error || "Error");
+    return;
+  }
+
+  // Totales globales
+  $('t_efectivo').textContent = money(json.totales.efectivo);
+  $('t_transferencia').textContent = money(json.totales.transferencia);
+  $('t_terminal1').textContent = money(json.totales.terminal1);
+  $('t_terminal2').textContent = money(json.totales.terminal2);
+  $('t_total').textContent = money(json.totales.total);
+
+  // Tabla por tienda
+  const tbody = $('tabla');
+  tbody.innerHTML = '';
+
+  json.tiendas.forEach(t => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${t.id_tienda}</td>
+      <td>${t.tienda}</td>
+      <td>${money(t.efectivo)}</td>
+      <td>${money(t.transferencia)}</td>
+      <td>${money(t.terminal1)}</td>
+      <td>${money(t.terminal2)}</td>
+      <td><b>${money(t.total)}</b></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+
+
+
 </script>
 
 </body>

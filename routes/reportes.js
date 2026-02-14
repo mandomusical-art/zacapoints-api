@@ -118,6 +118,62 @@ router.get('/resumen-mes', requireAuth, (req, res) => {
     GROUP BY t.id_tienda, t.nombre
     ORDER BY t.id_tienda ASC
   `;
+  // =====================================================
+// GET /api/reportes/resumen-dia?fecha=YYYY-MM-DD
+// =====================================================
+router.get('/resumen-dia', requireAuth, requireRole('ADMIN'), (req, res) => {
+  const { fecha } = req.query;
+
+  if (!fecha) {
+    return res.status(400).json({
+      ok: false,
+      mensaje: "Debes enviar fecha. Ej: ?fecha=2026-02-12"
+    });
+  }
+
+  const sql = `
+    SELECT
+      t.id_tienda,
+      t.nombre AS tienda,
+      COALESCE(SUM(r.efectivo), 0) AS efectivo,
+      COALESCE(SUM(r.transferencia), 0) AS transferencia,
+      COALESCE(SUM(r.terminal1), 0) AS terminal1,
+      COALESCE(SUM(r.terminal2), 0) AS terminal2,
+      COALESCE(SUM(r.total), 0) AS total
+    FROM tiendas t
+    LEFT JOIN reportes_diarios r
+      ON r.id_tienda = t.id_tienda
+      AND r.fecha = ?
+    WHERE t.activo = 1
+    GROUP BY t.id_tienda, t.nombre
+    ORDER BY t.id_tienda ASC
+  `;
+
+  db.query(sql, [fecha], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+
+    const totales = rows.reduce(
+      (acc, r) => {
+        acc.efectivo += Number(r.efectivo);
+        acc.transferencia += Number(r.transferencia);
+        acc.terminal1 += Number(r.terminal1);
+        acc.terminal2 += Number(r.terminal2);
+        acc.total += Number(r.total);
+        return acc;
+      },
+      { efectivo: 0, transferencia: 0, terminal1: 0, terminal2: 0, total: 0 }
+    );
+
+    res.json({
+      ok: true,
+      filtros: { fecha },
+      totales,
+      tiendas: rows
+    });
+  });
+});
 
   db.query(sql, [anio, mes], (err, rows) => {
     if (err) {
