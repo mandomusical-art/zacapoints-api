@@ -160,7 +160,7 @@ function setInfoUsuario() {
   }
 
   $('infoUser').textContent =
-    `Usuario: ${u.nombre} (${u.usuario}) | Rol: ${u.rol} | Tienda: ${u.id_tienda ?? 'GLOBAL'}`;
+  `Usuario: ${u.nombre} (${u.usuario}) | Rol: ${u.rol} | Tienda: ${u.id_tienda ?? 'GLOBAL'}`;
 
   if (u.rol === "ADMIN") {
   document.getElementById("boxRespuesta").style.display = "block";
