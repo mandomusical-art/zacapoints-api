@@ -47,6 +47,14 @@ router.post('/login', (req, res) => {
       return res.status(403).json({ ok: false, mensaje: 'Usuario desactivado' });
     }
 
+    // Blindaje: password inválido en BD
+    if (!u.password || !u.password.startsWith("$2")) {
+      return res.status(500).json({
+        ok: false,
+        mensaje: "Password inválido en BD (no está hasheado)"
+      });
+    }
+
     try {
       const okPass = await bcrypt.compare(password, u.password);
 
@@ -88,113 +96,6 @@ router.post('/login', (req, res) => {
   });
 });
 
-
-// ==============================
-// POST /api/auth/fijar-admin
-// Convierte id_usuario=1 a rol ADMIN
-// ==============================
-router.post('/fijar-admin', requireAuth, (req, res) => {
-
-  if (req.user.id_usuario !== 1) {
-    return res.status(403).json({
-      ok: false,
-      mensaje: "Solo el usuario principal puede ejecutar esto"
-    });
-  }
-
-  const sql = `UPDATE usuarios SET rol='ADMIN' WHERE id_usuario=1`;
-
-  db.query(sql, (err) => {
-    if (err) return res.status(500).json({ ok: false, error: err.message });
-
-    res.json({
-      ok: true,
-      mensaje: "Rol actualizado a ADMIN. Vuelve a iniciar sesión."
-    });
-  });
-});
-
-// ==============================
-// POST /api/auth/crear-usuario
-// Solo ADMIN
-// ==============================
-router.post('/crear-usuario', requireAuth, requireRole('ADMIN'), (req, res) => {
-  const { nombre, usuario, password, rol, id_tienda } = req.body;
-
-  if (!nombre || !usuario || !password || !rol) {
-    return res.status(400).json({
-      ok: false,
-      mensaje: "Faltan datos: nombre, usuario, password, rol"
-    });
-  }
-
-  if (password.length < 4) {
-    return res.status(400).json({
-      ok: false,
-      mensaje: "Password demasiado corto (mínimo 4 caracteres)"
-    });
-  }
-
-  if (!['ADMIN', 'TIENDA'].includes(rol)) {
-    return res.status(400).json({
-      ok: false,
-      mensaje: "Rol inválido. Usa ADMIN o TIENDA"
-    });
-  }
-
-  if (rol === 'TIENDA' && !id_tienda) {
-    return res.status(400).json({
-      ok: false,
-      mensaje: "Para rol TIENDA debes enviar id_tienda"
-    });
-  }
-
-  db.query(
-    "SELECT id_usuario FROM usuarios WHERE usuario = ? LIMIT 1",
-    [usuario],
-    async (err, rows) => {
-      if (err) return res.status(500).json({ ok: false, error: err.message });
-
-      if (rows.length > 0) {
-        return res.status(400).json({ ok: false, mensaje: "Ese usuario ya existe" });
-      }
-
-      const hash = await bcrypt.hash(password, 10);
-
-      const sql = `
-        INSERT INTO usuarios (
-          nombre,
-          usuario,
-          password,
-          rol,
-          id_tienda,
-          activo,
-          debe_cambiar_password
-        )
-        VALUES (?, ?, ?, ?, ?, 1, 1)
-      `;
-
-      db.query(sql, [nombre, usuario, hash, rol, id_tienda || null], (err2, result) => {
-        if (err2) return res.status(500).json({ ok: false, error: err2.message });
-
-        res.json({
-          ok: true,
-          mensaje: "Usuario creado",
-          id_usuario: result.insertId
-        });
-      });
-    }
-  );
-});
-
- if (!u.password || !u.password.startsWith("$2")) {
-  return res.status(500).json({
-    ok: false,
-    mensaje: "Password inválido en BD (no está hasheado)"
-  });
-}
-
-module.exports = router;
 
 // ==============================
 // POST /api/auth/cambiar-password
@@ -280,3 +181,103 @@ router.post('/cambiar-password', requireAuth, (req, res) => {
 });
 
 
+// ==============================
+// POST /api/auth/fijar-admin
+// Convierte id_usuario=1 a rol ADMIN
+// ==============================
+router.post('/fijar-admin', requireAuth, (req, res) => {
+
+  if (req.user.id_usuario !== 1) {
+    return res.status(403).json({
+      ok: false,
+      mensaje: "Solo el usuario principal puede ejecutar esto"
+    });
+  }
+
+  const sql = `UPDATE usuarios SET rol='ADMIN' WHERE id_usuario=1`;
+
+  db.query(sql, (err) => {
+    if (err) return res.status(500).json({ ok: false, error: err.message });
+
+    res.json({
+      ok: true,
+      mensaje: "Rol actualizado a ADMIN. Vuelve a iniciar sesión."
+    });
+  });
+});
+
+
+// ==============================
+// POST /api/auth/crear-usuario
+// Solo ADMIN
+// ==============================
+router.post('/crear-usuario', requireAuth, requireRole('ADMIN'), (req, res) => {
+  const { nombre, usuario, password, rol, id_tienda } = req.body;
+
+  if (!nombre || !usuario || !password || !rol) {
+    return res.status(400).json({
+      ok: false,
+      mensaje: "Faltan datos: nombre, usuario, password, rol"
+    });
+  }
+
+  if (password.length < 4) {
+    return res.status(400).json({
+      ok: false,
+      mensaje: "Password demasiado corto (mínimo 4 caracteres)"
+    });
+  }
+
+  if (!['ADMIN', 'TIENDA'].includes(rol)) {
+    return res.status(400).json({
+      ok: false,
+      mensaje: "Rol inválido. Usa ADMIN o TIENDA"
+    });
+  }
+
+  if (rol === 'TIENDA' && !id_tienda) {
+    return res.status(400).json({
+      ok: false,
+      mensaje: "Para rol TIENDA debes enviar id_tienda"
+    });
+  }
+
+  db.query(
+    "SELECT id_usuario FROM usuarios WHERE usuario = ? LIMIT 1",
+    [usuario],
+    async (err, rows) => {
+      if (err) return res.status(500).json({ ok: false, error: err.message });
+
+      if (rows.length > 0) {
+        return res.status(400).json({ ok: false, mensaje: "Ese usuario ya existe" });
+      }
+
+      const hash = await bcrypt.hash(password, 10);
+
+      const sql = `
+        INSERT INTO usuarios (
+          nombre,
+          usuario,
+          password,
+          rol,
+          id_tienda,
+          activo,
+          debe_cambiar_password
+        )
+        VALUES (?, ?, ?, ?, ?, 1, 1)
+      `;
+
+      db.query(sql, [nombre, usuario, hash, rol, id_tienda || null], (err2, result) => {
+        if (err2) return res.status(500).json({ ok: false, error: err2.message });
+
+        res.json({
+          ok: true,
+          mensaje: "Usuario creado",
+          id_usuario: result.insertId
+        });
+      });
+    }
+  );
+});
+
+module.exports = router;
