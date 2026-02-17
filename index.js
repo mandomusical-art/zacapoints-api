@@ -12,10 +12,6 @@ app.use('/api/reportes', require('./routes/reportes'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/tiendas', require('./routes/tiendas'));
 
-
-app.get('/', (req, res) => {
-  res.send('HOME OK');
-});
 app.get('/test123', (req, res) => {
   res.send('TEST123 OK 🔥');
 });

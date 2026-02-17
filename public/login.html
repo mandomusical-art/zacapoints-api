@@ -24,16 +24,8 @@
       padding:24px;
       box-shadow:0 10px 25px rgba(0,0,0,.08);
     }
-    h2{
-      margin:0 0 18px 0;
-      font-size:22px;
-    }
-    label{
-      display:block;
-      font-size:14px;
-      margin:10px 0 6px;
-      color:#333;
-    }
+    h2{ margin:0 0 18px 0; font-size:22px; }
+    label{ display:block; font-size:14px; margin:10px 0 6px; color:#333; }
     input{
       width:100%;
       padding:12px;
@@ -43,9 +35,7 @@
       outline:none;
       box-sizing:border-box;
     }
-    input:focus{
-      border-color:#222;
-    }
+    input:focus{ border-color:#222; }
     button{
       width:100%;
       margin-top:16px;
@@ -57,23 +47,16 @@
       font-size:16px;
       cursor:pointer;
     }
-    button:hover{
-      opacity:.92;
+    button:hover{ opacity:.92; }
+    button:disabled{
+      opacity:.6;
+      cursor:not-allowed;
     }
     .small{
       margin-top:12px;
       font-size:12px;
       color:#666;
       text-align:center;
-    }
-    pre{
-      margin-top:12px;
-      font-size:12px;
-      background:#f1f1f1;
-      padding:10px;
-      border-radius:10px;
-      overflow:auto;
-      display:none; /* lo ocultamos para el cliente */
     }
   </style>
 </head>
@@ -83,21 +66,36 @@
     <h2>🔐 Login Zacapoints</h2>
 
     <label for="usuario">Usuario</label>
-    <input id="usuario" placeholder="usuario" value="admin">
+    <input id="usuario" placeholder="usuario" autocomplete="username">
 
     <label for="password">Contraseña</label>
-    <input id="password" placeholder="password" value="1234" type="password">
+    <input id="password" placeholder="password" type="password" autocomplete="current-password">
 
-    <button onclick="login()">Entrar</button>
+    <button id="btnLogin" onclick="login()">Entrar</button>
 
     <div class="small">Acceso seguro • Railway Deploy</div>
-    <pre id="out"></pre>
   </div>
 
 <script>
 async function login() {
   const usuario = document.getElementById('usuario').value.trim();
   const password = document.getElementById('password').value;
+
+  if (!usuario || !password) {
+    alert("Escribe usuario y contraseña");
+    return;
+  }
+
+  if (!u.password || !u.password.startsWith("$2")) {
+  return res.status(500).json({
+    ok: false,
+    mensaje: "Password inválido en BD (no está hasheado)"
+  });
+}
+
+const btn = document.getElementById("btnLogin");
+  btn.disabled = true;
+  btn.textContent = "Entrando...";
 
   localStorage.removeItem("token");
   localStorage.removeItem("usuario");
@@ -110,7 +108,6 @@ async function login() {
     });
 
     const json = await res.json();
-    document.getElementById('out').textContent = JSON.stringify(json, null, 2);
 
     if (!res.ok || !json.ok) {
       alert(json.mensaje || json.error || "Login incorrecto");
@@ -120,15 +117,23 @@ async function login() {
     localStorage.setItem('token', json.token);
     localStorage.setItem('usuario', JSON.stringify(json.usuario));
 
+    // 🔥 NUEVO: si debe cambiar password, lo mandamos a la pantalla obligatoria
+    if (json.usuario?.debe_cambiar_password) {
+      window.location.href = "/cambiar-password.html";
+      return;
+    }
+
     window.location.href = "/dashboard.html";
 
   } catch (err) {
     alert("No se pudo conectar al servidor");
     console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Entrar";
   }
 }
 </script>
 
 </body>
 </html>
-
