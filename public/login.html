@@ -86,13 +86,7 @@ async function login() {
     return;
   }
 
-  if (!u.password || !u.password.startsWith("$2")) {
-  return res.status(500).json({
-    ok: false,
-    mensaje: "Password inválido en BD (no está hasheado)"
-  });
-}
-
+ 
 const btn = document.getElementById("btnLogin");
   btn.disabled = true;
   btn.textContent = "Entrando...";
