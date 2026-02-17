@@ -187,6 +187,12 @@ router.post('/crear-usuario', requireAuth, requireRole('ADMIN'), (req, res) => {
   );
 });
 
+ if (!u.password || !u.password.startsWith("$2")) {
+  return res.status(500).json({
+    ok: false,
+    mensaje: "Password inválido en BD (no está hasheado)"
+  });
+}
 
 module.exports = router;
 
